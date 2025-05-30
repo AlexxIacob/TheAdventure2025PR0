@@ -9,6 +9,10 @@ namespace TheAdventure;
 
 public class Engine
 {
+    private int _score = 0;
+
+    private bool _isGameOver = false;
+
     private readonly GameRenderer _renderer;
     private readonly Input _input;
     private readonly ScriptEngine _scriptEngine = new();
@@ -88,6 +92,16 @@ public class Engine
             return;
         }
 
+        // Dacă jocul e în Game Over, așteaptă R pentru restart
+        if (_isGameOver)
+        {
+            if (_input.IsKeyRPressed())
+            {
+                ResetGame();
+            }
+            return; // nu mai procesăm nimic altceva
+        }
+
         double up = _input.IsUpPressed() ? 1.0 : 0.0;
         double down = _input.IsDownPressed() ? 1.0 : 0.0;
         double left = _input.IsLeftPressed() ? 1.0 : 0.0;
@@ -96,18 +110,46 @@ public class Engine
         bool addBomb = _input.IsKeyBPressed();
 
         _player.UpdatePosition(up, down, left, right, 48, 48, msSinceLastFrame);
+
         if (isAttacking)
         {
             _player.Attack();
         }
-        
+
+        // Verifică HP-ul și activează Game Over dacă e cazul
+        if (_player.HP <= 0 && !_isGameOver)
+        {
+            _isGameOver = true;
+            Console.WriteLine("GAME OVER");
+            Console.WriteLine("Press R to retry");
+            return; // opriți restul frame-ului
+        }
+
         _scriptEngine.ExecuteAll(this);
 
         if (addBomb)
         {
             AddBomb(_player.Position.X, _player.Position.Y, false);
         }
+    
+    if (_isGameOver && _input.IsKeyRPressed())
+    {
+         ResetGame();
     }
+
+}
+    private void ResetGame()
+{
+    _gameObjects.Clear();
+    _tileIdMap.Clear();
+    _loadedTileSets.Clear();
+    _currentLevel = new Level();
+    _player = null;
+    _isGameOver = false;
+    _score = 0;
+    SetupWorld();
+}
+
 
     public void RenderFrame()
     {
@@ -149,7 +191,7 @@ public class Engine
             var deltaY = Math.Abs(_player.Position.Y - tempGameObject.Position.Y);
             if (deltaX < 32 && deltaY < 32)
             {
-                _player.GameOver();
+                _player.TakeDamage(10);
             }
         }
 

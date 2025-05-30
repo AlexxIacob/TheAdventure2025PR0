@@ -81,6 +81,24 @@ public class PlayerObject : RenderableGameObject
         var direction = State.Direction;
         SetState(PlayerState.Attack, direction);
     }
+    
+    public int HP { get; private set; } = 100;
+
+    public void TakeDamage(int amount)
+    {
+     if (State.State == PlayerState.GameOver)
+         return;
+
+        HP -= amount;
+        Console.WriteLine($"HP: {HP}");
+
+         if (HP <= 0)
+     {
+             HP = 0;
+             GameOver();
+     }
+}
+
 
     public void UpdatePosition(double up, double down, double left, double right, int width, int height, double time)
     {
@@ -117,7 +135,7 @@ public class PlayerObject : RenderableGameObject
         else
         {
             newState = PlayerState.Move;
-            
+
             if (y < Position.Y && newDirection != PlayerStateDirection.Up)
             {
                 newDirection = PlayerStateDirection.Up;
