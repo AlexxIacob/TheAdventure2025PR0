@@ -9,7 +9,18 @@ namespace TheAdventure;
 
 public class Engine
 {
+
+    private bool _wasBPressedLastFrame = false;
+
+    private int _bombsAvailable = 5;
+    private const int _maxBombs = 5;
+    private double _timeSinceLastBombRecharge = 0;
+    private const double _bombRechargeInterval = 10.0; // seconds
+
     private int _score = 0;
+
+    private string _lastHudText = "";
+
 
     private bool _isGameOver = false;
 
@@ -82,62 +93,71 @@ public class Engine
     }
 
     public void ProcessFrame()
+{
+    var currentTime = DateTimeOffset.Now;
+    var secondsSinceLastFrame = (currentTime - _lastUpdate).TotalSeconds;
+    _lastUpdate = currentTime;
+
+    _timeSinceLastBombRecharge += secondsSinceLastFrame;
+
+    if (_timeSinceLastBombRecharge >= _bombRechargeInterval && _bombsAvailable < _maxBombs)
     {
-        var currentTime = DateTimeOffset.Now;
-        var msSinceLastFrame = (currentTime - _lastUpdate).TotalMilliseconds;
-        _lastUpdate = currentTime;
-
-        if (_player == null)
-        {
-            return;
-        }
-
-        // Dacă jocul e în Game Over, așteaptă R pentru restart
-        if (_isGameOver)
-        {
-            if (_input.IsKeyRPressed())
-            {
-                ResetGame();
-            }
-            return; // nu mai procesăm nimic altceva
-        }
-
-        double up = _input.IsUpPressed() ? 1.0 : 0.0;
-        double down = _input.IsDownPressed() ? 1.0 : 0.0;
-        double left = _input.IsLeftPressed() ? 1.0 : 0.0;
-        double right = _input.IsRightPressed() ? 1.0 : 0.0;
-        bool isAttacking = _input.IsKeyAPressed() && (up + down + left + right <= 1);
-        bool addBomb = _input.IsKeyBPressed();
-
-        _player.UpdatePosition(up, down, left, right, 48, 48, msSinceLastFrame);
-
-        if (isAttacking)
-        {
-            _player.Attack();
-        }
-
-        // Verifică HP-ul și activează Game Over dacă e cazul
-        if (_player.HP <= 0 && !_isGameOver)
-        {
-            _isGameOver = true;
-            Console.WriteLine("GAME OVER");
-            Console.WriteLine("Press R to retry");
-            return; // opriți restul frame-ului
-        }
-
-        _scriptEngine.ExecuteAll(this);
-
-        if (addBomb)
-        {
-            AddBomb(_player.Position.X, _player.Position.Y, false);
-        }
-    
-    if (_isGameOver && _input.IsKeyRPressed())
-    {
-         ResetGame();
+        _bombsAvailable++;
+        _timeSinceLastBombRecharge = 0;
     }
 
+    if (_player == null)
+    {
+        return;
+    }
+
+    if (_isGameOver)
+    {
+        if (_input.IsKeyRPressed())
+        {
+            ResetGame();
+        }
+        return;
+    }
+
+    double up = _input.IsUpPressed() ? 1.0 : 0.0;
+    double down = _input.IsDownPressed() ? 1.0 : 0.0;
+    double left = _input.IsLeftPressed() ? 1.0 : 0.0;
+    double right = _input.IsRightPressed() ? 1.0 : 0.0;
+    bool isAttacking = _input.IsKeyAPressed() && (up + down + left + right <= 1);
+    bool isBPressed = _input.IsKeyBPressed();
+
+    _player.UpdatePosition(up, down, left, right, 48, 48, secondsSinceLastFrame * 1000); // ms
+
+    if (isAttacking)
+    {
+        _player.Attack();
+    }
+
+    if (_player.HP <= 0 && !_isGameOver)
+    {
+        _isGameOver = true;
+        Console.WriteLine("GAME OVER");
+        Console.WriteLine("Press R to retry");
+        return;
+    }
+
+    _scriptEngine.ExecuteAll(this);
+
+    if (isBPressed && !_wasBPressedLastFrame && _bombsAvailable > 0)
+    {
+        AddBomb(_player.Position.X, _player.Position.Y, false);
+        _bombsAvailable--;
+    }
+
+    _wasBPressedLastFrame = isBPressed;
+
+    if (_isGameOver && _input.IsKeyRPressed())
+    {
+        ResetGame();
+    }
 }
+
     private void ResetGame()
 {
     _gameObjects.Clear();
@@ -148,6 +168,20 @@ public class Engine
     _isGameOver = false;
     _score = 0;
     SetupWorld();
+}
+    private void DrawHUD()
+{
+    int secondsLeft = (int)Math.Ceiling(_bombRechargeInterval - _timeSinceLastBombRecharge);
+    if (secondsLeft < 0) secondsLeft = 0;
+
+    string hudText = $"Bombs: {_bombsAvailable} | Next bomb in: {secondsLeft}s";
+
+    // Afișăm doar dacă s-a schimbat conținutul
+    if (hudText != _lastHudText)
+    {
+        Console.WriteLine(hudText);
+        _lastHudText = hudText;
+    }
 }
 
 
@@ -161,6 +195,8 @@ public class Engine
 
         RenderTerrain();
         RenderAllObjects();
+        DrawHUD();
+
 
         _renderer.PresentFrame();
     }
