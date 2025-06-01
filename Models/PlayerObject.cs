@@ -90,7 +90,6 @@ public class PlayerObject : RenderableGameObject
          return;
 
         HP -= amount;
-        Console.WriteLine($"HP: {HP}");
 
          if (HP <= 0)
      {

@@ -137,8 +137,6 @@ public class Engine
     if (_player.HP <= 0 && !_isGameOver)
     {
         _isGameOver = true;
-        Console.WriteLine("GAME OVER");
-        Console.WriteLine("Press R to retry");
         return;
     }
 
@@ -175,14 +173,26 @@ public class Engine
     if (secondsLeft < 0) secondsLeft = 0;
 
     string hudText = $"Bombs: {_bombsAvailable} | Next bomb in: {secondsLeft}s";
+    string hpText = $"HP: {_player?.HP ?? 0}";
 
-    // Afișăm doar dacă s-a schimbat conținutul
-    if (hudText != _lastHudText)
+    _renderer.DrawText(hudText, 10, 10);
+    _renderer.DrawText(hpText, 10, 30);
+
+    if (_isGameOver)
     {
-        Console.WriteLine(hudText);
-        _lastHudText = hudText;
+        var windowSize = _renderer.WindowSize; // trebuie să adaugi această proprietate în GameRenderer.cs
+        var message = "Press R to retry";
+
+        int textWidth = 200;
+        int textHeight = 50;
+        int centerX = (windowSize.Width - textWidth) / 2;
+        int centerY = (windowSize.Height - textHeight) / 2;
+
+        _renderer.DrawText(message, centerX, centerY, 24); // font mai mare
     }
 }
+
+
 
 
     public void RenderFrame()

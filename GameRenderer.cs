@@ -4,11 +4,17 @@ using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.PixelFormats;
 using TheAdventure.Models;
 using Point = Silk.NET.SDL.Point;
+using SixLabors.Fonts;
+using SixLabors.ImageSharp.Drawing.Processing;
+using SixLabors.ImageSharp.Processing;
 
 namespace TheAdventure;
 
 public unsafe class GameRenderer
 {
+
+    public (int Width, int Height) WindowSize => _window.Size;
+
     private Sdl _sdl;
     private Renderer* _renderer;
     private GameWindow _window;
@@ -29,6 +35,30 @@ public unsafe class GameRenderer
         var windowSize = window.Size;
         _camera = new Camera(windowSize.Width, windowSize.Height);
     }
+
+    public void DrawText(string text, int x, int y, int fontSize = 16)
+{
+    var fontCollection = new FontCollection();
+    var fontFamily = fontCollection.Add("Assets/Fonts/Archivo.ttf"); // folosește fontul tău
+    var font = fontFamily.CreateFont(fontSize);
+
+    using var textImage = new Image<Rgba32>(200, 50); // imagine de bază
+    textImage.Mutate(ctx => ctx.DrawText(text, font, SixLabors.ImageSharp.Color.White, new SixLabors.ImageSharp.PointF(0, 0)));
+
+    var rawData = new byte[200 * 50 * 4];
+    textImage.CopyPixelDataTo(rawData);
+
+    fixed (byte* data = rawData)
+    {
+        var surface = _sdl.CreateRGBSurfaceWithFormatFrom(data, 200, 50, 8, 800, (uint)PixelFormatEnum.Rgba32);
+        var texture = _sdl.CreateTextureFromSurface(_renderer, surface);
+        _sdl.FreeSurface(surface);
+
+        var dstRect = new Rectangle<int>(x, y, 200, 50);
+        _sdl.RenderCopy(_renderer, (Texture*)texture, null, &dstRect);
+        _sdl.DestroyTexture((Texture*)texture);
+    }
+}
 
     public void SetWorldBounds(Rectangle<int> bounds)
     {
